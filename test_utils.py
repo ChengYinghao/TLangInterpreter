@@ -24,15 +24,15 @@ class TestUtils(TestCase):
         self.assertEqual(segments, answer)
     
     def test_quoted_split(self):
-        string = 'abc, acd, a"aa"bb, a"a,a,a"cc'
-        answer = ['abc', ' acd', ' a"aa"bb', ' a"a,a,a"cc']
+        string = 'abc,acd,a"aa"bb,a"a,a,a"cc'
+        answer = ['abc', 'acd', 'a"aa"bb', 'a"a,a,a"cc']
         segments, closed = quoted_split(string, ',', '"')
         self.assertEqual(segments, answer)
         self.assertEqual(closed, True)
     
     def test_quoted_split_not_closed(self):
-        string = 'abc, acd, a"aa"bb, a"a,a,a, cc'
-        answer = ['abc', ' acd', ' a"aa"bb', ' a"a,a,a, cc']
+        string = 'abc,acd,a"aa"bb,a"a,a,a,cc'
+        answer = ['abc', 'acd', 'a"aa"bb', 'a"a,a,a,cc']
         segments, closed = quoted_split(string, ',', '"')
         self.assertEqual(segments, answer)
         self.assertEqual(closed, False)

@@ -362,9 +362,10 @@ class TinyLangSyntaxError(TinyLangCompileError):
 
 def main():
     args = sys.argv
+    work_dir = args[0]
+    os.chdir(os.path.dirname(work_dir))
     if len(args) == 1:
-        work_dir = args[0]
-        main_interactive(work_dir)
+        main_interactive()
     elif len(args) == 2:
         script_fn = args[1]
         main_script_file(script_fn)
@@ -372,9 +373,7 @@ def main():
         raise RuntimeError("Expected 1 parameter or no parameters, given " + str(len(args) - 1) + ".")
 
 
-def main_interactive(work_dir):
-    os.chdir(work_dir)
-    
+def main_interactive():
     runtime = TinyLangRuntime()
     
     next_line = 0
@@ -404,13 +403,10 @@ def main_interactive(work_dir):
 
 
 def main_script_file(script_fn):
-    work_dir = os.path.dirname(script_fn)
-    os.chdir(work_dir)
-    
     runtime = TinyLangRuntime()
     with open(script_fn, 'r') as script_file:
         string = script_file.read()
-        runtime.execute_string(string, keep_empty=True)
+    runtime.execute_string(string, keep_empty=True)
 
 
 if __name__ == '__main__':

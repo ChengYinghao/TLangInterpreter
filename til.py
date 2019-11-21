@@ -17,7 +17,7 @@ class TinyLangRuntime:
         return input()
     
     def print(self, obj):
-        print(obj)
+        print(obj, end='')
     
     @staticmethod
     def parse_one_line_string(line, string):
@@ -25,7 +25,9 @@ class TinyLangRuntime:
         label, statement = quoted_split_first(string, ':')
         if label is not None:
             label = label.strip()
-            if len(label) == 0:
+            if len(label) > 0:
+                check_name_legal(line, label)
+            else:
                 label = None
         
         statement = statement.strip()
@@ -40,7 +42,13 @@ class TinyLangRuntime:
         from_line = len(self.statements)
         for one_line_string in string.splitlines():
             line = len(self.statements)
-            label, statement = self.parse_one_line_string(line, one_line_string)
+            try:
+                label, statement = self.parse_one_line_string(line, one_line_string)
+            except TinyLangCompileError:
+                raise
+            except RuntimeError as e:
+                raise UnknownCompileError(line, e)
+            
             if not keep_empty and label is None and statement is None:
                 continue
             self.statements.append(statement)
@@ -97,7 +105,7 @@ class ValueExpresion(Expresion):
         if string.replace('.', '', 1).isdigit():
             value = float(string)
             return ValueExpresion(value)
-        raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string")
+        raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
     
     def eval(self, line, context):
         return self.value
@@ -171,7 +179,10 @@ class Statement(abc.ABC):
     
     @staticmethod
     def parse(line, string):
-        keyword, string = quoted_split_first(string, ' ')
+        keyword, content = quoted_split_first(string, ' ')
+        if keyword is None:
+            keyword = string
+            content = ""
         cls = {
             'let': LetStatement,
             'if': IfStatement,
@@ -180,7 +191,7 @@ class Statement(abc.ABC):
         }.get(keyword)
         if cls is None:
             raise TinyLangSyntaxError(line, 'can not recognize keyword "' + keyword + '"!')
-        return cls.parse(line, string)
+        return cls.parse(line, content)
     
     @abc.abstractmethod
     def exec(self, line, runtime):
@@ -195,6 +206,8 @@ class LetStatement(Statement):
     @staticmethod
     def parse(line, string):
         name, expresion = quoted_split_first(string, '=')
+        if name is None:
+            raise TinyLangSyntaxError(line, 'the assignment operator "=" is not found in let statement!')
         name = name.strip()
         check_name_legal(line, name)
         expresion = Expresion.parse(line, expresion)
@@ -212,6 +225,8 @@ class IfStatement(Statement):
     @staticmethod
     def parse(line, string):
         expresion, target = quoted_split_first(string, 'goto')
+        if expresion is None:
+            raise TinyLangSyntaxError(line, 'the word "goto" is not found in if statement!')
         expresion = expresion.strip()
         expresion = Expresion.parse(line, expresion)
         target = target.strip()
@@ -252,15 +267,24 @@ class PrintStatement(Statement):
     
     @staticmethod
     def parse(line, string):
+        string = string.strip()
+        if len(string) == 0:
+            return PrintStatement()
+        
         segments, closed = quoted_split(string, ',', '"')
         if not closed:
             raise TinyLangSyntaxError(line, "quote not closed!")
+        
         expr_list = [Expresion.parse(line, segment) for segment in segments]
         return PrintStatement(*expr_list)
     
     def exec(self, line, runtime):
-        for expr in self.expr_list:
-            runtime.print(expr.eval(line, runtime.context))
+        if len(self.expr_list) > 0:
+            runtime.print(self.expr_list[0].eval(line, runtime.context))
+            for expr in self.expr_list[1:]:
+                runtime.print(' ')
+                runtime.print(expr.eval(line, runtime.context))
+        runtime.print('\n')
 
 
 # runtime error
@@ -296,15 +320,25 @@ class IllegalInputError(TinyLangRuntimeError):
 
 class TinyLangCompileError(RuntimeError):
     def __init__(self, line, message):
-        message += " at line " + str(line) + "!"
+        message += " (at line " + str(line) + ")"
         super().__init__(message)
         self.line = line
 
 
 class TinyLangSyntaxError(TinyLangCompileError):
     def __init__(self, line, message):
-        message = "Syntax error:" + message + " at line " + str(line) + "!"
+        message = "Syntax error:" + message
         super().__init__(line, message)
+
+
+class UnknownCompileError(TinyLangCompileError):
+    def __init__(self, line, error):
+        self.error = error
+        message = "Syntax error: compile failed due to the following exception."
+        super().__init__(line, message)
+    
+    def __str__(self) -> str:
+        return super().__str__() + "\n" + str(self.error)
 
 
 # utils
@@ -356,7 +390,7 @@ def check_name_legal(line, name):
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
     if ',' in name or ':' in name or '"' in name:
         raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
-    if any(s in name for s, _ in (op.value for op in OperatorExpresion.Operator)):
+    if any(s in name for s in [op.value[0] for op in OperatorExpresion.Operator] + ["="]):
         raise TinyLangSyntaxError(line, message + "operators!")
 
 

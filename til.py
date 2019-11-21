@@ -11,7 +11,7 @@ class TinyLangRuntime:
         self.statements = []
         self.labels = {}
         self.context = {}
-        self.line = None
+        self.next_line = None
     
     def input(self):
         return input()
@@ -49,14 +49,13 @@ class TinyLangRuntime:
         return from_line
     
     def execute_from(self, line):
-        self.line = line
-        while 0 <= self.line < len(self.statements):
-            statement = self.statements[self.line]
-            self.line += 1
+        self.next_line = line
+        while 0 <= self.next_line < len(self.statements):
+            statement = self.statements[self.next_line]
             if statement is not None:
                 statement.exec(self)
-        next_line = self.line
-        self.line = None
+        next_line = self.next_line
+        self.next_line = None
         return next_line
     
     def execute_string(self, string, keep_empty=True):
@@ -226,7 +225,7 @@ class IfStatement(Statement):
         target_line = runtime.labels.get(self.target)
         if target_line is None:
             raise IllegalGotoLabelError(self.line, self.target)
-        runtime.line = target_line
+        runtime.next_line = target_line
 
 
 class InputStatement(Statement):

@@ -414,7 +414,7 @@ def check_name_legal(line, name):
     if len(name) == 0:
         raise TinyLangSyntaxError(line, "name of variables and labels must not be empty!")
     
-    message = "name of variables and labels must not contains "
+    message = '"' + name + '" is not a legal name of variable (label), it must not contains '
     if ' ' in name or '\t' in name:
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
     if ',' in name or ':' in name or '"' in name:

@@ -52,6 +52,7 @@ class TinyLangRuntime:
         self.next_line = line
         while 0 <= self.next_line < len(self.statements):
             statement = self.statements[self.next_line]
+            self.next_line += 1
             if statement is not None:
                 statement.exec(self)
         next_line = self.next_line
@@ -157,9 +158,9 @@ class OperatorExpresion(Expresion):
         return OperatorExpresion(operator, expr1, expr2)
     
     def eval(self, line, context):
-        _, func = self.operator
-        x = self.expr1.eval(context)
-        y = self.expr2.eval(context)
+        _, func = self.operator.value
+        x = self.expr1.eval(line, context)
+        y = self.expr2.eval(line, context)
         return func(x, y)
 
 
@@ -220,7 +221,7 @@ class IfStatement(Statement):
         return IfStatement(line, expresion, target)
     
     def exec(self, runtime):
-        if self.expr.eval() == 0:
+        if self.expr.eval(self.line, runtime.context) == 0:
             return
         target_line = runtime.labels.get(self.target)
         if target_line is None:

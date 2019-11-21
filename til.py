@@ -22,7 +22,7 @@ class TinyLangRuntime:
     @staticmethod
     def parse_one_line_string(line, string):
         string = string.strip()
-        label, statement = split_next_word(string, ':')
+        label, statement = quoted_split_first(string, ':')
         if label is not None:
             label = label.strip()
             if len(label) == 0:
@@ -171,7 +171,7 @@ class Statement(abc.ABC):
     
     @staticmethod
     def parse(line, string):
-        keyword, string = split_next_word(string, ' ')
+        keyword, string = quoted_split_first(string, ' ')
         cls = {
             'let': LetStatement,
             'if': IfStatement,
@@ -195,7 +195,7 @@ class LetStatement(Statement):
     
     @staticmethod
     def parse(line, string):
-        name, expresion = split_next_word(string, '=')
+        name, expresion = quoted_split_first(string, '=')
         name = name.strip()
         name_legal(line, name)
         expresion = Expresion.parse(line, expresion)
@@ -213,7 +213,7 @@ class IfStatement(Statement):
     
     @staticmethod
     def parse(line, string):
-        expresion, target = split_next_word(string, 'goto')
+        expresion, target = quoted_split_first(string, 'goto')
         expresion = expresion.strip()
         expresion = Expresion.parse(line, expresion)
         target = target.strip()
@@ -269,11 +269,25 @@ class PrintStatement(Statement):
 
 # utils
 
-def split_next_word(string, sep, start=0):
-    cursor = string.find(sep, start)
-    if cursor != -1:
-        word = string[:cursor]
-        return word, string[cursor + len(sep):]
+def quoted_split_first(string, sep=',', quote='"'):
+    cursor = 0
+    while True:
+        quote_pos = string.find(quote, cursor)
+        sep_pos = string.find(sep, cursor)
+        if sep_pos == -1:
+            break
+        if quote_pos == -1:
+            break
+        if sep_pos < quote_pos:
+            break
+        right_quote_pos = string.find(quote, quote_pos + 1)
+        if right_quote_pos == -1:
+            sep_pos = -1
+            break
+        cursor = right_quote_pos + 1
+    
+    if sep_pos != -1:
+        return string[:sep_pos], string[sep_pos + len(sep):]
     else:
         return None, string
 

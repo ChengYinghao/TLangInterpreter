@@ -52,9 +52,10 @@ class TinyLangRuntime:
         self.next_line = line
         while 0 <= self.next_line < len(self.statements):
             statement = self.statements[self.next_line]
+            line = self.next_line
             self.next_line += 1
             if statement is not None:
-                statement.exec(self)
+                statement.exec(line, self)
         next_line = self.next_line
         self.next_line = None
         return next_line
@@ -167,8 +168,6 @@ class OperatorExpresion(Expresion):
 # statement
 
 class Statement(abc.ABC):
-    def __init__(self, line):
-        self.line = line
     
     @staticmethod
     def parse(line, string):
@@ -184,13 +183,12 @@ class Statement(abc.ABC):
         return cls.parse(line, string)
     
     @abc.abstractmethod
-    def exec(self, runtime):
+    def exec(self, line, runtime):
         pass
 
 
 class LetStatement(Statement):
-    def __init__(self, line, name, expr):
-        super().__init__(line)
+    def __init__(self, name, expr):
         self.name = name
         self.expr = expr
     
@@ -200,15 +198,14 @@ class LetStatement(Statement):
         name = name.strip()
         name_legal(line, name)
         expresion = Expresion.parse(line, expresion)
-        return LetStatement(line, name, expresion)
+        return LetStatement(name, expresion)
     
-    def exec(self, runtime):
-        runtime.context[self.name] = self.expr.eval(self.line, runtime.context)
+    def exec(self, line, runtime):
+        runtime.context[self.name] = self.expr.eval(line, runtime.context)
 
 
 class IfStatement(Statement):
-    def __init__(self, line, expr, target):
-        super().__init__(line)
+    def __init__(self, expr, target):
         self.target = target
         self.expr = expr
     
@@ -218,20 +215,19 @@ class IfStatement(Statement):
         expresion = expresion.strip()
         expresion = Expresion.parse(line, expresion)
         target = target.strip()
-        return IfStatement(line, expresion, target)
+        return IfStatement(expresion, target)
     
-    def exec(self, runtime):
-        if self.expr.eval(self.line, runtime.context) == 0:
+    def exec(self, line, runtime):
+        if self.expr.eval(line, runtime.context) == 0:
             return
         target_line = runtime.labels.get(self.target)
         if target_line is None:
-            raise IllegalGotoLabelError(self.line, self.target)
+            raise IllegalGotoLabelError(line, self.target)
         runtime.next_line = target_line
 
 
 class InputStatement(Statement):
-    def __init__(self, line, name):
-        super().__init__(line)
+    def __init__(self, name):
         self.name = name
     
     @staticmethod
@@ -239,20 +235,19 @@ class InputStatement(Statement):
         name = string
         name = name.strip()
         name_legal(line, name)
-        return InputStatement(line, name)
+        return InputStatement(name)
     
-    def exec(self, runtime):
+    def exec(self, line, runtime):
         value = runtime.input()
         try:
             value = float(value)
         except ValueError:
-            raise IllegalInputError(self.line)
+            raise IllegalInputError(line)
         runtime.context[self.name] = value
 
 
 class PrintStatement(Statement):
-    def __init__(self, line, *expr_list):
-        super().__init__(line)
+    def __init__(self, *expr_list):
         self.expr_list = expr_list
     
     @staticmethod
@@ -261,11 +256,11 @@ class PrintStatement(Statement):
         if not closed:
             raise TinyLangSyntaxError(line, "quote not closed!")
         expr_list = [Expresion.parse(line, segment) for segment in segments]
-        return PrintStatement(line, *expr_list)
+        return PrintStatement(*expr_list)
     
-    def exec(self, runtime):
+    def exec(self, line, runtime):
         for expr in self.expr_list:
-            runtime.print(expr.eval(self.line, runtime.context))
+            runtime.print(expr.eval(line, runtime.context))
 
 
 # runtime error

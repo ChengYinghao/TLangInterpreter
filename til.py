@@ -256,7 +256,7 @@ class PrintStatement(Statement):
     
     @staticmethod
     def parse(line, string):
-        segments, closed = split_quoted(string, ',', '"')
+        segments, closed = quoted_split(string, ',', '"')
         if not closed:
             raise TinyLangSyntaxError(line, "quote not closed!")
         expr_list = [Expresion.parse(line, segment) for segment in segments]
@@ -278,21 +278,20 @@ def split_next_word(string, sep, start=0):
         return None, string
 
 
-def split_quoted(string, sep, quote):
-    quote_split = string.split(quote)
+def quoted_split(string, sep=',', quote='"'):
+    quote_segments = string.split(quote)
     
     quoted = False
-    first_piece = quote_split[0]
-    segments = first_piece.split(sep)
+    segments = quote_segments[0].split(sep)
     
-    for i, qs in enumerate(quote_split[1:]):
+    for i, quote_segment in enumerate(quote_segments[1:]):
         quoted = i % 2 == 0
         if quoted:
-            segments[-1] += quote + qs
+            segments[-1] += quote + quote_segment
         else:
-            sep_split = qs.split(sep)
-            segments[-1] += quote + sep_split[0]
-            segments.extend(sep_split[1:])
+            sep_segments = quote_segment.split(sep)
+            segments[-1] += quote + sep_segments[0]
+            segments.extend(sep_segments[1:])
     closed = not quoted
     return segments, closed
 

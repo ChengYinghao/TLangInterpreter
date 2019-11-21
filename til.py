@@ -206,11 +206,17 @@ class LetStatement(Statement):
     @staticmethod
     def parse(line, string):
         name, expresion = quoted_split_first(string, '=')
+        
         if name is None:
             raise TinyLangSyntaxError(line, 'the assignment operator "=" is not found in let statement!')
         name = name.strip()
         check_name_legal(line, name)
+        
+        expresion = expresion.strip()
+        if len(expresion) == 0:
+            raise TinyLangSyntaxError(line, 'an expresion or value is expected for assignment!')
         expresion = Expresion.parse(line, expresion)
+        
         return LetStatement(name, expresion)
     
     def exec(self, line, runtime):
@@ -225,11 +231,16 @@ class IfStatement(Statement):
     @staticmethod
     def parse(line, string):
         expresion, target = quoted_split_first(string, 'goto')
+        
         if expresion is None:
             raise TinyLangSyntaxError(line, 'the word "goto" is not found in if statement!')
         expresion = expresion.strip()
         expresion = Expresion.parse(line, expresion)
+        
         target = target.strip()
+        if len(target) == 0:
+            raise TinyLangSyntaxError(line, 'a target goto label is expected!')
+        
         return IfStatement(expresion, target)
     
     def exec(self, line, runtime):
@@ -249,6 +260,8 @@ class InputStatement(Statement):
     def parse(line, string):
         name = string
         name = name.strip()
+        if len(name) == 0:
+            raise TinyLangSyntaxError(line, 'a variable name (to store the input value) is expected!')
         check_name_legal(line, name)
         return InputStatement(name)
     

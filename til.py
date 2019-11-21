@@ -26,7 +26,7 @@ class TinyLangRuntime:
         if label is not None:
             label = label.strip()
             if len(label) > 0:
-                check_name_legal(line, label)
+                label = check_name_legal(line, label)
             else:
                 label = None
         
@@ -42,6 +42,7 @@ class TinyLangRuntime:
         from_line = len(self.statements)
         for one_line_string in string.splitlines():
             line = len(self.statements)
+            
             try:
                 label, statement = self.parse_one_line_string(line, one_line_string)
             except TinyLangCompileError:
@@ -53,7 +54,9 @@ class TinyLangRuntime:
                 continue
             self.statements.append(statement)
             if label is not None:
+                label = check_name_legal(line, label)
                 self.labels[label] = line
+        
         return from_line
     
     def execute_from(self, line):
@@ -118,7 +121,7 @@ class ReferenceExpresion(Expresion):
     @staticmethod
     def parse(line, string: str):
         name = string.strip()
-        check_name_legal(line, name)
+        name = check_name_legal(line, name)
         return ReferenceExpresion(name)
     
     def eval(self, line, context):
@@ -210,7 +213,9 @@ class LetStatement(Statement):
         if name is None:
             raise TinyLangSyntaxError(line, 'the assignment operator "=" is not found in let statement!')
         name = name.strip()
-        check_name_legal(line, name)
+        if len(name) == 0:
+            raise TinyLangSyntaxError(line, 'a variable name is expected for assignment!')
+        name = check_name_legal(line, name)
         
         expresion = expresion.strip()
         if len(expresion) == 0:
@@ -262,7 +267,7 @@ class InputStatement(Statement):
         name = name.strip()
         if len(name) == 0:
             raise TinyLangSyntaxError(line, 'a variable name (to store the input value) is expected!')
-        check_name_legal(line, name)
+        name = check_name_legal(line, name)
         return InputStatement(name)
     
     def exec(self, line, runtime):
@@ -288,7 +293,13 @@ class PrintStatement(Statement):
         if not closed:
             raise TinyLangSyntaxError(line, "quote not closed!")
         
-        expr_list = [Expresion.parse(line, segment) for segment in segments]
+        expr_list = []
+        for segment in segments:
+            segment = segment.strip()
+            if len(segment) == 0:
+                raise TinyLangSyntaxError(line, 'an expresion or value is expected')
+            expr_list.append(Expresion.parse(line, segment))
+        
         return PrintStatement(*expr_list)
     
     def exec(self, line, runtime):
@@ -398,6 +409,11 @@ def quoted_split(string, sep=',', quote='"'):
 
 
 def check_name_legal(line, name):
+    name = name.strip()
+    
+    if len(name) == 0:
+        raise TinyLangSyntaxError(line, "name of variables and labels must not be empty!")
+    
     message = "name of variables and labels must not contains "
     if ' ' in name or '\t' in name:
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
@@ -405,6 +421,8 @@ def check_name_legal(line, name):
         raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
     if any(s in name for s in [op.value[0] for op in OperatorExpresion.Operator] + ["="]):
         raise TinyLangSyntaxError(line, message + "operators!")
+    
+    return name
 
 
 # main

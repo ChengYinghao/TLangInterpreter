@@ -8,19 +8,40 @@ import os
 
 class TinyLangRuntime:
     def __init__(self):
+        """
+        create and initialize  a runtime for TinyLang,
+        """
         self.statements = []
         self.labels = {}
         self.context = {}
         self.next_line = None
     
     def input(self):
+        """
+        The input function. It is used when executing an input statement.
+        
+        :return: the input from stdin (not checked format, not converted)
+        """
         return input()
     
     def print(self, obj):
+        """
+        The print function. It is used when executing a print statement.
+        This function dose not add line separator as suffix.
+        
+        :param obj: something to print
+        """
         print(obj, end='')
     
     @staticmethod
     def parse_one_line_string(line, string):
+        """
+        Parse an one-line string into label and statement.
+        
+        :param line: the line number of this string, used for error locating.
+        :param string: an one-line string (without any line separator)
+        :return: label and statement, both witch can be None
+        """
         string = string.strip()
         label, statement = quoted_split_first(string, ':')
         if label is not None:
@@ -39,6 +60,17 @@ class TinyLangRuntime:
         return label, statement
     
     def load_string(self, string, keep_empty=True):
+        """
+        Parse string (can be multi-line) as code and then save the information of statements and labels.
+        This function does not perform any execution.
+        
+        :param string: a string of code (can be multi-line)
+        :param keep_empty: whether to count the line number when meeting a empty lines.
+            Use True to run a script file in order to match line numbers.
+            Use False in interactive mode to ignore empty lines.
+        :return: the first line number of the loaded string. From this line we can execute the code.
+            It can be not 0 in interactive mode.
+        """
         from_line = len(self.statements)
         for one_line_string in string.splitlines():
             line = len(self.statements)
@@ -60,6 +92,14 @@ class TinyLangRuntime:
         return from_line
     
     def execute_from(self, line):
+        """
+        Execute the code from a specified line.
+        The runtime will automatically run the next line unless it meets a goto instruction.
+        The runtime stops when meets the end of code or occurs any runtime error.
+        
+        :param line: from which to run the code.
+        :return: the next line to run (it should be bigger then the max existing line number)
+        """
         self.next_line = line
         while 0 <= self.next_line < len(self.statements):
             statement = self.statements[self.next_line]
@@ -72,6 +112,15 @@ class TinyLangRuntime:
         return next_line
     
     def execute_string(self, string, keep_empty=True):
+        """
+        Parse a string (can be multi-line) as and then execute it.
+        
+        :param string: a string of code (can be multi-line)
+        :param keep_empty: whether to count the line number when meeting a empty lines.
+            Use True to run a script file in order to match line numbers.
+            Use False in interactive mode to ignore empty lines.
+        :return: the next line to run (it should be bigger then the max existing line number)
+        """
         from_line = self.load_string(string, keep_empty)
         next_line = self.execute_from(from_line)
         return next_line

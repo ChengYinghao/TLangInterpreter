@@ -193,7 +193,7 @@ class Statement(abc.ABC):
             'print': PrintStatement,
         }.get(keyword)
         if cls is None:
-            raise TinyLangSyntaxError(line, 'can not recognize keyword "' + keyword + '"!')
+            raise TinyLangSyntaxError(line, '"' + keyword + '" is not a legal keyword!')
         return cls.parse(line, content)
     
     @abc.abstractmethod
@@ -211,7 +211,7 @@ class LetStatement(Statement):
         name, expresion = quoted_split_first(string, '=')
         
         if name is None:
-            raise TinyLangSyntaxError(line, 'the assignment operator "=" is not found in let statement!')
+            raise TinyLangSyntaxError(line, 'an assignment operator "=" is expected!')
         name = name.strip()
         if len(name) == 0:
             raise TinyLangSyntaxError(line, 'a variable name is expected for assignment!')
@@ -238,13 +238,13 @@ class IfStatement(Statement):
         expresion, target = quoted_split_first(string, 'goto')
         
         if expresion is None:
-            raise TinyLangSyntaxError(line, 'the word "goto" is not found in if statement!')
+            raise TinyLangSyntaxError(line, 'a word "goto" is expected!')
         expresion = expresion.strip()
         expresion = Expresion.parse(line, expresion)
         
         target = target.strip()
         if len(target) == 0:
-            raise TinyLangSyntaxError(line, 'a target goto label is expected!')
+            raise TinyLangSyntaxError(line, 'a target label name is expected!')
         
         return IfStatement(expresion, target)
     

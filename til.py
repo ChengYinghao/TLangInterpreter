@@ -25,8 +25,8 @@ class TinyLangRuntime:
         label, statement = split_next_word(string, ':')
         if label is not None:
             label = label.strip()
-        if len(label) == 0:
-            label = None
+            if len(label) == 0:
+                label = None
         
         statement = statement.strip()
         if len(statement) == 0:
@@ -149,7 +149,7 @@ class OperatorExpresion(Expresion):
         if operator_pos == -1 or operator is None:
             raise TinyLangSyntaxError(line, "Not found any operator in the expresion!")
         
-        op_str, _ = operator
+        op_str, _ = operator.value
         expr1 = string[:operator_pos]
         expr1 = Expresion.parse(line, expr1)
         expr2 = string[operator_pos + len(op_str):]

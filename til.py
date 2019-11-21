@@ -12,28 +12,30 @@ class TinyLangRuntime:
         self.labels = {}
         self.context = {}
         self.line = None
-
+    
     def input(self):
         return input()
-
+    
     def print(self, obj):
         print(obj)
-
+    
     @staticmethod
     def parse_one_line_string(line, string):
         string = string.strip()
         label, statement = split_next_word(string, ':')
         if label is not None:
             label = label.strip()
-
+        if len(label) == 0:
+            label = None
+        
         statement = statement.strip()
         if len(statement) == 0:
             statement = None
         else:
             statement = Statement.parse(line, statement)
-
+        
         return label, statement
-
+    
     def load_string(self, string, keep_empty=True):
         from_line = len(self.statements)
         for one_line_string in string.splitlines():
@@ -45,7 +47,7 @@ class TinyLangRuntime:
             if label is not None:
                 self.labels[label] = line
         return from_line
-
+    
     def execute_from(self, line):
         self.line = line
         while 0 <= self.line < len(self.statements):
@@ -56,7 +58,7 @@ class TinyLangRuntime:
         next_line = self.line
         self.line = None
         return next_line
-
+    
     def execute_string(self, string, keep_empty=True):
         from_line = self.load_string(string, keep_empty)
         next_line = self.execute_from(from_line)
@@ -66,7 +68,7 @@ class TinyLangRuntime:
 # expresion
 
 class Expresion(abc.ABC):
-
+    
     @staticmethod
     def parse(line, string: str):
         for cls in [ValueExpresion, OperatorExpresion, ReferenceExpresion]:
@@ -75,7 +77,7 @@ class Expresion(abc.ABC):
             except TinyLangSyntaxError:
                 pass
         raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expresion!')
-
+    
     @abc.abstractmethod
     def eval(self, line, context):
         pass
@@ -84,7 +86,7 @@ class Expresion(abc.ABC):
 class ValueExpresion(Expresion):
     def __init__(self, value):
         self.value = value
-
+    
     @staticmethod
     def parse(line, string: str):
         string = string.strip()
@@ -95,7 +97,7 @@ class ValueExpresion(Expresion):
             value = float(string)
             return ValueExpresion(value)
         raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string")
-
+    
     def eval(self, line, context):
         return self.value
 
@@ -103,13 +105,13 @@ class ValueExpresion(Expresion):
 class ReferenceExpresion(Expresion):
     def __init__(self, name):
         self.name = name
-
+    
     @staticmethod
     def parse(line, string: str):
         name = string.strip()
         name_legal(line, name)
         return ReferenceExpresion(name)
-
+    
     def eval(self, line, context):
         value = context.get(self.name)
         if value is None:
@@ -129,32 +131,32 @@ class OperatorExpresion(Expresion):
         GE = '>=', lambda x, y: float(x >= y)
         EQ = '==', lambda x, y: float(x == y)
         NE = '!=', lambda x, y: float(x != y)
-
+    
     def __init__(self, operator, expr1, expr2):
         self.operator = operator
         self.expr1 = expr1
         self.expr2 = expr2
-
+    
     @staticmethod
     def parse(line, string: str):
         operator = None
         operator_pos = -1
         for op in OperatorExpresion.Operator:
-            s, _ = op
+            s, _ = op.value
             operator_pos = string.find(s)
             if operator_pos != -1:
                 operator = op
                 break
         if operator_pos == -1 or operator is None:
             raise TinyLangSyntaxError(line, "Not found any operator in the expresion!")
-
+        
         op_str, _ = operator
         expr1 = string[:operator_pos]
         expr1 = Expresion.parse(line, expr1)
         expr2 = string[operator_pos + len(op_str):]
         expr2 = Expresion.parse(line, expr2)
         return OperatorExpresion(operator, expr1, expr2)
-
+    
     def eval(self, line, context):
         _, func = self.operator
         x = self.expr1.eval(context)
@@ -167,7 +169,7 @@ class OperatorExpresion(Expresion):
 class Statement(abc.ABC):
     def __init__(self, line):
         self.line = line
-
+    
     @staticmethod
     def parse(line, string):
         keyword, string = split_next_word(string, ' ')
@@ -180,7 +182,7 @@ class Statement(abc.ABC):
         if cls is None:
             raise TinyLangSyntaxError(line, 'can not recognize keyword "' + keyword + '"!')
         return cls.parse(line, string)
-
+    
     @abc.abstractmethod
     def exec(self, runtime):
         pass
@@ -191,7 +193,7 @@ class LetStatement(Statement):
         super().__init__(line)
         self.name = name
         self.expr = expr
-
+    
     @staticmethod
     def parse(line, string):
         name, expresion = split_next_word(string, '=')
@@ -199,7 +201,7 @@ class LetStatement(Statement):
         name_legal(line, name)
         expresion = Expresion.parse(line, expresion)
         return LetStatement(line, name, expresion)
-
+    
     def exec(self, runtime):
         runtime.context[self.name] = self.expr.eval(self.line, runtime.context)
 
@@ -209,7 +211,7 @@ class IfStatement(Statement):
         super().__init__(line)
         self.target = target
         self.expr = expr
-
+    
     @staticmethod
     def parse(line, string):
         expresion, target = split_next_word(string, 'goto')
@@ -217,7 +219,7 @@ class IfStatement(Statement):
         expresion = Expresion.parse(line, expresion)
         target = target.strip()
         return IfStatement(line, expresion, target)
-
+    
     def exec(self, runtime):
         if self.expr.eval() == 0:
             return
@@ -231,14 +233,14 @@ class InputStatement(Statement):
     def __init__(self, line, name):
         super().__init__(line)
         self.name = name
-
+    
     @staticmethod
     def parse(line, string):
         name = string
         name = name.strip()
         name_legal(line, name)
         return InputStatement(line, name)
-
+    
     def exec(self, runtime):
         value = runtime.input()
         try:
@@ -252,7 +254,7 @@ class PrintStatement(Statement):
     def __init__(self, line, *expr_list):
         super().__init__(line)
         self.expr_list = expr_list
-
+    
     @staticmethod
     def parse(line, string):
         segments, closed = split_quoted(string, ',', '"')
@@ -260,7 +262,7 @@ class PrintStatement(Statement):
             raise TinyLangSyntaxError(line, "quote not closed!")
         expr_list = [Expresion.parse(line, segment) for segment in segments]
         return PrintStatement(line, *expr_list)
-
+    
     def exec(self, runtime):
         for expr in self.expr_list:
             runtime.print(expr.eval(self.line, runtime.context))
@@ -279,11 +281,11 @@ def split_next_word(string, sep, start=0):
 
 def split_quoted(string, sep, quote):
     quote_split = string.split(quote)
-
+    
     quoted = False
     first_piece = quote_split[0]
     segments = first_piece.split(sep)
-
+    
     for i, qs in enumerate(quote_split[1:]):
         quoted = i % 2 == 0
         if quoted:
@@ -303,7 +305,7 @@ def name_legal(line, name, throw=True):
             raise TinyLangSyntaxError(line, message + "spaces or tabs!")
         if ',' in name or ':' in name or '"' in name:
             raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
-        if any(op in name for op in [s for s in OperatorExpresion.Operator.__members__()]):
+        if any(s in name for s, _ in (op.value for op in OperatorExpresion.Operator)):
             raise TinyLangSyntaxError(line, message + "operators!")
         return True
     except TinyLangSyntaxError:
@@ -360,25 +362,22 @@ class TinyLangSyntaxError(TinyLangCompileError):
 
 
 def main():
-    # import pdb
-    # pdb.set_trace()
     args = sys.argv
-    if len(args) == 2:
-        work_dir = args[1]
+    if len(args) == 1:
+        work_dir = args[0]
         main_interactive(work_dir)
-    elif len(args) == 3:
-        work_dir = args[1]
-        script_fn = args[2]
-        main_script_file(work_dir + "\\" + script_fn)
+    elif len(args) == 2:
+        script_fn = args[1]
+        main_script_file(script_fn)
     else:
         raise RuntimeError("Expected 1 parameter or no parameters, given " + str(len(args) - 1) + ".")
 
 
 def main_interactive(work_dir):
     os.chdir(work_dir)
-
+    
     runtime = TinyLangRuntime()
-
+    
     next_line = 0
     break_error = False
     while True:
@@ -395,7 +394,7 @@ def main_interactive(work_dir):
             break
         except EOFError:
             break
-
+    
     if break_error:
         print()
         print("terminated with error")
@@ -405,13 +404,13 @@ def main_interactive(work_dir):
         print("finished")
 
 
-def main_script_file(source_file):
-    # work_dir = os.path.dirname(work_dir)
-    # os.chdir(work_dir)
-
+def main_script_file(script_fn):
+    work_dir = os.path.dirname(script_fn)
+    os.chdir(work_dir)
+    
     runtime = TinyLangRuntime()
-    with open(source_file, 'r') as source_file:
-        string = source_file.read()
+    with open(script_fn, 'r') as script_file:
+        string = script_file.read()
         runtime.execute_string(string, keep_empty=True)
 
 

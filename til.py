@@ -110,7 +110,7 @@ class ReferenceExpresion(Expresion):
     @staticmethod
     def parse(line, string: str):
         name = string.strip()
-        name_legal(line, name)
+        check_name_legal(line, name)
         return ReferenceExpresion(name)
     
     def eval(self, line, context):
@@ -196,7 +196,7 @@ class LetStatement(Statement):
     def parse(line, string):
         name, expresion = quoted_split_first(string, '=')
         name = name.strip()
-        name_legal(line, name)
+        check_name_legal(line, name)
         expresion = Expresion.parse(line, expresion)
         return LetStatement(name, expresion)
     
@@ -234,7 +234,7 @@ class InputStatement(Statement):
     def parse(line, string):
         name = string
         name = name.strip()
-        name_legal(line, name)
+        check_name_legal(line, name)
         return InputStatement(name)
     
     def exec(self, line, runtime):
@@ -350,20 +350,14 @@ def quoted_split(string, sep=',', quote='"'):
     return segments, closed
 
 
-def name_legal(line, name, throw=True):
-    try:
-        message = "name of variables and labels must not contains "
-        if ' ' in name or '\t' in name:
-            raise TinyLangSyntaxError(line, message + "spaces or tabs!")
-        if ',' in name or ':' in name or '"' in name:
-            raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
-        if any(s in name for s, _ in (op.value for op in OperatorExpresion.Operator)):
-            raise TinyLangSyntaxError(line, message + "operators!")
-        return True
-    except TinyLangSyntaxError:
-        if throw:
-            raise
-        return False
+def check_name_legal(line, name):
+    message = "name of variables and labels must not contains "
+    if ' ' in name or '\t' in name:
+        raise TinyLangSyntaxError(line, message + "spaces or tabs!")
+    if ',' in name or ':' in name or '"' in name:
+        raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
+    if any(s in name for s, _ in (op.value for op in OperatorExpresion.Operator)):
+        raise TinyLangSyntaxError(line, message + "operators!")
 
 
 # main

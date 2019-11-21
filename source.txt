@@ -6,4 +6,4 @@ let x = start
 repeat: print x
 let x = x + 1
 if x < end goto repeat
-print "that's all"
+print "that's all", x

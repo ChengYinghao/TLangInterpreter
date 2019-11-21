@@ -267,6 +267,50 @@ class PrintStatement(Statement):
             runtime.print(expr.eval(self.line, runtime.context))
 
 
+# runtime error
+
+class TinyLangRuntimeError(RuntimeError):
+    def __init__(self, line, message):
+        message += " (at line " + str(line) + ")"
+        super().__init__(message)
+        self.line = line
+
+
+class UndefinedVariableError(TinyLangRuntimeError):
+    def __init__(self, line, name):
+        self.name = name
+        message = "Undefined variable " + name + "!"
+        super().__init__(line, message)
+
+
+class IllegalGotoLabelError(TinyLangRuntimeError):
+    def __init__(self, line, label):
+        self.label = label
+        message = "Illegal goto label " + label + "!"
+        super().__init__(line, message)
+
+
+class IllegalInputError(TinyLangRuntimeError):
+    def __init__(self, line):
+        message = "Illegal or missing input!"
+        super().__init__(line, message)
+
+
+# compile error
+
+class TinyLangCompileError(RuntimeError):
+    def __init__(self, line, message):
+        message += " at line " + str(line) + "!"
+        super().__init__(message)
+        self.line = line
+
+
+class TinyLangSyntaxError(TinyLangCompileError):
+    def __init__(self, line, message):
+        message = "Syntax error:" + message + " at line " + str(line) + "!"
+        super().__init__(line, message)
+
+
 # utils
 
 def quoted_split_first(string, sep=',', quote='"'):
@@ -324,50 +368,6 @@ def name_legal(line, name, throw=True):
         if throw:
             raise
         return False
-
-
-# runtime error
-
-class TinyLangRuntimeError(RuntimeError):
-    def __init__(self, line, message):
-        message += " (at line " + str(line) + ")"
-        super().__init__(message)
-        self.line = line
-
-
-class UndefinedVariableError(TinyLangRuntimeError):
-    def __init__(self, line, name):
-        self.name = name
-        message = "Undefined variable " + name + "!"
-        super().__init__(line, message)
-
-
-class IllegalGotoLabelError(TinyLangRuntimeError):
-    def __init__(self, line, label):
-        self.label = label
-        message = "Illegal goto label " + label + "!"
-        super().__init__(line, message)
-
-
-class IllegalInputError(TinyLangRuntimeError):
-    def __init__(self, line):
-        message = "Illegal or missing input!"
-        super().__init__(line, message)
-
-
-# compile error
-
-class TinyLangCompileError(RuntimeError):
-    def __init__(self, line, message):
-        message += " at line " + str(line) + "!"
-        super().__init__(message)
-        self.line = line
-
-
-class TinyLangSyntaxError(TinyLangCompileError):
-    def __init__(self, line, message):
-        message = "Syntax error:" + message + " at line " + str(line) + "!"
-        super().__init__(line, message)
 
 
 # main

@@ -491,22 +491,34 @@ class OperatorExpression(Expression):
     
     @staticmethod
     def parse(line, string: str):
-        operator = None
+        # Some operators can contains each other, for example "<=" contains "<".
+        # To avoid confusion, we firstly rearrangement the sequence:
+        # check operators with bigger length firstly.
+        operators = sorted(
+            (op for op in OperatorExpression.Operator),
+            key=lambda op: len(op.value[0]), reverse=True)
+        
+        # Try to find an operator.
         operator_pos = -1
-        for op in OperatorExpression.Operator:
+        operator = None
+        for op in operators:
             s, _ = op.value
             operator_pos = string.find(s)
             if operator_pos != -1:
                 operator = op
                 break
+        
+        # If not found any operator, raise an error.
         if operator_pos == -1 or operator is None:
             raise TinyLangSyntaxError(line, "Not found any operator in the expression!")
         
+        # If found the operator, parse the expressions on both sides
         op_str, _ = operator.value
         expr1 = string[:operator_pos]
-        expr1 = Expression.parse(line, expr1)
         expr2 = string[operator_pos + len(op_str):]
+        expr1 = Expression.parse(line, expr1)
         expr2 = Expression.parse(line, expr2)
+        
         return OperatorExpression(operator, expr1, expr2)
     
     def eval(self, line, context):

@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from til import quoted_split, quoted_split_first
+from tli import quoted_split, quoted_split_first
 
 
 class TestUtils(TestCase):

@@ -7,39 +7,56 @@ import os
 # interpreter
 
 class TinyLangInterpreter:
+    """ An interpreter that interprets and executes tiny-lang code.
+    
+    Once initialized, the interpreter holds all parsed code, goto labels and context.
+    
+    Attributes:
+        statements: A list that holds all parsed code.
+            Its indices matches the line number.
+        labels: A dict that holds all goto labels.
+            The keys are label names, values are line numbers.
+        context: A dict that holds all runtime variables.
+            The keys are variable names, values are variable values.
+    """
+    
     def __init__(self):
-        """
-        create and initialize  a interpreter for TinyLang,
-        """
+        """ Create and initialize a tiny-lang interpreter. """
         self.statements = []
         self.labels = {}
         self.context = {}
     
     def input(self):
-        """
-        The input function. It is used when executing an input statement.
+        """ The input function.
         
-        :return: the input from stdin (not checked format, not converted)
+        This function is used when executing an input statement.
+        
+        Returns:
+            The input from stdin (not checked format, not converted)
         """
         return input()
     
     def print(self, obj):
-        """
-        The print function. It is used when executing a print statement.
+        """ The print function.
+        
+        It is used when executing a print statement.
         This function dose not add line separator as suffix.
         
-        :param obj: something to print
+        Args:
+            obj: Something to print. It can be anything that printable in Python.
         """
         print(obj, end='')
     
     @staticmethod
     def parse_one_line_string(line, string):
-        """
-        Parse an one-line string into label and statement.
+        """ Parse an one-line string into label and statement.
         
-        :param line: the line number of this string, used for error locating.
-        :param string: an one-line string (without any line separator)
-        :return: label and statement, both witch can be None
+        Args:
+            line: The line number of this string, used for error locating.
+            string: An one-line string (without any line separator)
+        
+        Returns:
+            Label and statement, both witch can be None
         """
         string = string.strip()
         label, statement = quoted_split_first(string, ':')
@@ -59,15 +76,20 @@ class TinyLangInterpreter:
         return label, statement
     
     def load_string(self, string, keep_empty=True):
-        """
-        Parse string (can be multi-line) as code and then save the information of statements and labels.
-        This function does not perform any execution.
+        """ Load a string as tiny-lang code
         
-        :param string: a string of code (can be multi-line)
-        :param keep_empty: whether to count the line number when meeting a empty lines.
-            Use True to run a script file in order to match line numbers.
-            Use False in interactive mode to ignore empty lines.
-        :return: the first line number of the loaded string. From this line we can execute the code.
+        Parse the string (can be multi-line) as tiny-lang code, get statements and goto labels.
+        Then the interpreter stores the parsed statements and goto labels for further execution.
+        (this function does not perform any execution)
+        
+        Args:
+            string: A string of tiny-lang code (can be multi-line)
+            keep_empty: Whether to count the line number when meeting a empty lines.
+                Use True to run a script file in order to match line numbers.
+                Use False in interactive mode to ignore empty lines.
+        
+        Returns:
+            The first line number of the loaded string. From this line we can execute the code.
             It can be not 0 in interactive mode.
         """
         from_line = len(self.statements)
@@ -91,13 +113,16 @@ class TinyLangInterpreter:
         return from_line
     
     def execute_from(self, line):
-        """
-        Execute the code from a specified line.
+        """ Execute code starting from a specified line.
+        
         The interpreter will automatically run the next line unless it meets a goto instruction.
         The interpreter stops when meets the end of code or occurs any runtime error.
         
-        :param line: from which to run the code.
-        :return: the next line to run (it should be bigger then the max existing line number)
+        Args:
+            line: The line number from which to run the code.
+        
+        Returns:
+            The number of next line. It should be bigger then the last line number.
         """
         while 0 <= line < len(self.statements):
             statement = self.statements[line]
@@ -117,14 +142,16 @@ class TinyLangInterpreter:
         return line
     
     def execute_string(self, string, keep_empty=True):
-        """
-        Parse a string (can be multi-line) as and then execute it.
+        """ Parse a string (can be multi-line) as and then execute it.
         
-        :param string: a string of code (can be multi-line)
-        :param keep_empty: whether to count the line number when meeting a empty lines.
-            Use True to run a script file in order to match line numbers.
-            Use False in interactive mode to ignore empty lines.
-        :return: the next line to run (it should be bigger then the max existing line number)
+        Args:
+            string: A string of tiny-lang code (can be multi-line)
+            keep_empty: whether to count the line number when meeting a empty lines.
+                Use True to run a script file in order to match line numbers.
+                Use False in interactive mode to ignore empty lines.
+        
+        Returns:
+            The number of next line. It should be bigger then the last line number.
         """
         from_line = self.load_string(string, keep_empty)
         next_line = self.execute_from(from_line)

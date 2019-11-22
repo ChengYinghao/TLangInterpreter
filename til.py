@@ -131,105 +131,6 @@ class TinyLangRuntime:
         return next_line
 
 
-# expresion
-
-class Expresion(abc.ABC):
-    
-    @staticmethod
-    def parse(line, string: str):
-        for cls in [ValueExpresion, OperatorExpresion, ReferenceExpresion]:
-            try:
-                return cls.parse(line, string)
-            except TinyLangSyntaxError:
-                pass
-        raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expresion!')
-    
-    @abc.abstractmethod
-    def eval(self, line, context):
-        pass
-
-
-class ValueExpresion(Expresion):
-    def __init__(self, value):
-        self.value = value
-    
-    @staticmethod
-    def parse(line, string: str):
-        string = string.strip()
-        if string.startswith('"') and string.endswith('"'):
-            value = string.strip('"')
-            return ValueExpresion(value)
-        if string.replace('.', '', 1).isdigit():
-            value = float(string)
-            return ValueExpresion(value)
-        raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
-    
-    def eval(self, line, context):
-        return self.value
-
-
-class ReferenceExpresion(Expresion):
-    def __init__(self, name):
-        self.name = name
-    
-    @staticmethod
-    def parse(line, string: str):
-        name = string.strip()
-        name = check_name_legal(line, name)
-        return ReferenceExpresion(name)
-    
-    def eval(self, line, context):
-        value = context.get(self.name)
-        if value is None:
-            raise UndefinedVariableError(line, self.name)
-        return value
-
-
-class OperatorExpresion(Expresion):
-    class Operator(enum.Enum):
-        PL = '+', lambda x, y: x + y
-        MI = '-', lambda x, y: x - y
-        MU = '*', lambda x, y: x * y
-        DI = '/', lambda x, y: x / y
-        LT = '<', lambda x, y: float(x < y)
-        LE = '<=', lambda x, y: float(x <= y)
-        GT = '>', lambda x, y: float(x > y)
-        GE = '>=', lambda x, y: float(x >= y)
-        EQ = '==', lambda x, y: float(x == y)
-        NE = '!=', lambda x, y: float(x != y)
-    
-    def __init__(self, operator, expr1, expr2):
-        self.operator = operator
-        self.expr1 = expr1
-        self.expr2 = expr2
-    
-    @staticmethod
-    def parse(line, string: str):
-        operator = None
-        operator_pos = -1
-        for op in OperatorExpresion.Operator:
-            s, _ = op.value
-            operator_pos = string.find(s)
-            if operator_pos != -1:
-                operator = op
-                break
-        if operator_pos == -1 or operator is None:
-            raise TinyLangSyntaxError(line, "Not found any operator in the expresion!")
-        
-        op_str, _ = operator.value
-        expr1 = string[:operator_pos]
-        expr1 = Expresion.parse(line, expr1)
-        expr2 = string[operator_pos + len(op_str):]
-        expr2 = Expresion.parse(line, expr2)
-        return OperatorExpresion(operator, expr1, expr2)
-    
-    def eval(self, line, context):
-        _, func = self.operator.value
-        x = self.expr1.eval(line, context)
-        y = self.expr2.eval(line, context)
-        return func(x, y)
-
-
 # statement
 
 class Statement(abc.ABC):
@@ -364,6 +265,105 @@ class PrintStatement(Statement):
                 runtime.print(expr.eval(line, runtime.context))
         runtime.print('\n')
         return None
+
+
+# expresion
+
+class Expresion(abc.ABC):
+    
+    @staticmethod
+    def parse(line, string: str):
+        for cls in [ValueExpresion, OperatorExpresion, ReferenceExpresion]:
+            try:
+                return cls.parse(line, string)
+            except TinyLangSyntaxError:
+                pass
+        raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expresion!')
+    
+    @abc.abstractmethod
+    def eval(self, line, context):
+        pass
+
+
+class ValueExpresion(Expresion):
+    def __init__(self, value):
+        self.value = value
+    
+    @staticmethod
+    def parse(line, string: str):
+        string = string.strip()
+        if string.startswith('"') and string.endswith('"'):
+            value = string.strip('"')
+            return ValueExpresion(value)
+        if string.replace('.', '', 1).isdigit():
+            value = float(string)
+            return ValueExpresion(value)
+        raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
+    
+    def eval(self, line, context):
+        return self.value
+
+
+class ReferenceExpresion(Expresion):
+    def __init__(self, name):
+        self.name = name
+    
+    @staticmethod
+    def parse(line, string: str):
+        name = string.strip()
+        name = check_name_legal(line, name)
+        return ReferenceExpresion(name)
+    
+    def eval(self, line, context):
+        value = context.get(self.name)
+        if value is None:
+            raise UndefinedVariableError(line, self.name)
+        return value
+
+
+class OperatorExpresion(Expresion):
+    class Operator(enum.Enum):
+        PL = '+', lambda x, y: x + y
+        MI = '-', lambda x, y: x - y
+        MU = '*', lambda x, y: x * y
+        DI = '/', lambda x, y: x / y
+        LT = '<', lambda x, y: float(x < y)
+        LE = '<=', lambda x, y: float(x <= y)
+        GT = '>', lambda x, y: float(x > y)
+        GE = '>=', lambda x, y: float(x >= y)
+        EQ = '==', lambda x, y: float(x == y)
+        NE = '!=', lambda x, y: float(x != y)
+    
+    def __init__(self, operator, expr1, expr2):
+        self.operator = operator
+        self.expr1 = expr1
+        self.expr2 = expr2
+    
+    @staticmethod
+    def parse(line, string: str):
+        operator = None
+        operator_pos = -1
+        for op in OperatorExpresion.Operator:
+            s, _ = op.value
+            operator_pos = string.find(s)
+            if operator_pos != -1:
+                operator = op
+                break
+        if operator_pos == -1 or operator is None:
+            raise TinyLangSyntaxError(line, "Not found any operator in the expresion!")
+        
+        op_str, _ = operator.value
+        expr1 = string[:operator_pos]
+        expr1 = Expresion.parse(line, expr1)
+        expr2 = string[operator_pos + len(op_str):]
+        expr2 = Expresion.parse(line, expr2)
+        return OperatorExpresion(operator, expr1, expr2)
+    
+    def eval(self, line, context):
+        _, func = self.operator.value
+        x = self.expr1.eval(line, context)
+        y = self.expr2.eval(line, context)
+        return func(x, y)
 
 
 # runtime error

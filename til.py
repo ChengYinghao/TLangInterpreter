@@ -14,7 +14,6 @@ class TinyLangRuntime:
         self.statements = []
         self.labels = {}
         self.context = {}
-        self.next_line = None
     
     def input(self):
         """
@@ -100,16 +99,22 @@ class TinyLangRuntime:
         :param line: from which to run the code.
         :return: the next line to run (it should be bigger then the max existing line number)
         """
-        self.next_line = line
-        while 0 <= self.next_line < len(self.statements):
-            statement = self.statements[self.next_line]
-            line = self.next_line
-            self.next_line += 1
+        while 0 <= line < len(self.statements):
+            statement = self.statements[line]
             if statement is not None:
-                statement.exec(line, self)
-        next_line = self.next_line
-        self.next_line = None
-        return next_line
+                goto_label = statement.exec(line, self)
+            else:
+                goto_label = None
+            
+            if goto_label is not None:
+                next_line = self.labels.get(goto_label)
+                if next_line is None:
+                    raise IllegalGotoLabelError(line, goto_label)
+            else:
+                next_line = line + 1
+            
+            line = next_line
+        return line
     
     def execute_string(self, string, keep_empty=True):
         """
@@ -275,6 +280,7 @@ class LetStatement(Statement):
     
     def exec(self, line, runtime):
         runtime.context[self.name] = self.expr.eval(line, runtime.context)
+        return None
 
 
 class IfStatement(Statement):
@@ -299,11 +305,9 @@ class IfStatement(Statement):
     
     def exec(self, line, runtime):
         if self.expr.eval(line, runtime.context) == 0:
-            return
-        target_line = runtime.labels.get(self.target)
-        if target_line is None:
-            raise IllegalGotoLabelError(line, self.target)
-        runtime.next_line = target_line
+            return None
+        else:
+            return self.target
 
 
 class InputStatement(Statement):
@@ -326,6 +330,7 @@ class InputStatement(Statement):
         except ValueError:
             raise IllegalInputError(line)
         runtime.context[self.name] = value
+        return None
 
 
 class PrintStatement(Statement):
@@ -358,6 +363,7 @@ class PrintStatement(Statement):
                 runtime.print(' ')
                 runtime.print(expr.eval(line, runtime.context))
         runtime.print('\n')
+        return None
 
 
 # runtime error

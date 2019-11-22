@@ -573,6 +573,21 @@ class UnknownCompileError(TinyLangCompileError):
 # utils
 
 def quoted_split_first(string, sep=',', quote='"'):
+    """ Split the first segment using the specified separator, considering quotes.
+    
+    This function splits the string by the first not quoted separator.
+    
+    Args:
+        string: The string to be split.
+        sep: Several chars by which to separate the string.
+        quote: Several chars which is recognized as quote.
+    
+    Returns:
+        A tuple with two split parts.
+            If not found any separator outside the quotes,
+            the first part will be None, and the second will be the original string
+    """
+    
     cursor = 0
     while True:
         quote_pos = string.find(quote, cursor)
@@ -596,6 +611,22 @@ def quoted_split_first(string, sep=',', quote='"'):
 
 
 def quoted_split(string, sep=',', quote='"'):
+    """ Split string by the specified separator, considering quotes.
+    
+    This function has the similar behavior as str.split(). Only it can consider the quotes.
+    That is, the separators that between two quotes are not recognized as effective separators.
+    
+    Args:
+        string: The string to be split.
+        sep: Several chars by which to separate the string.
+        quote: Several chars which is recognized as quote.
+    
+    Returns:
+        A tuple with two elements.
+            The first element is the split parts.
+            The second element is a boolean that indicates whether the quote is closed.
+    """
+    
     quote_segments = string.split(quote)
     
     quoted = False
@@ -614,17 +645,30 @@ def quoted_split(string, sep=',', quote='"'):
 
 
 def check_name_legal(line, name):
-    name = name.strip()
+    """ Check the name is legal, raises TinyLangSyntaxError if is not.
     
+    It contains the following several checks:
+     - blank or empty
+     - number starting
+     - space containing
+     - punctuation containing
+     - operator containing
+    
+    """
+    
+    name = name.strip()
     if len(name) == 0:
-        raise TinyLangSyntaxError(line, "name of variables and labels must not be empty!")
+        raise TinyLangSyntaxError(line, "name of variables and labels must not be blank or empty!")
+    
+    if name[0] in '0123456789':
+        raise TinyLangSyntaxError(line, "name of variables and labels must not starts with numbers!")
     
     message = '"' + name + '" is not a legal name of variable (label), it must not contains '
-    if ' ' in name or '\t' in name:
+    if any(c in name for c in ' \t'):
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
-    if ',' in name or ':' in name or '"' in name:
-        raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
-    if any(s in name for s in [op.value[0] for op in OperatorExpression.Operator] + ["="]):
+    if any(c in name for c in ',.:;\'"!@#$%^&?|\\~`'):
+        raise TinyLangSyntaxError(line, message + "punctuations! (besides the underscore)")
+    if any(c in name for c in '+-*/<=>'):
         raise TinyLangSyntaxError(line, message + "operators!")
     
     return name

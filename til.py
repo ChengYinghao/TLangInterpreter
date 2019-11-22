@@ -234,7 +234,7 @@ class LetStatement(Statement):
         Returns:
             A parsed let-statement.
         """
-        name, expresion = quoted_split_first(string, '=')
+        name, expression = quoted_split_first(string, '=')
         
         if name is None:
             raise TinyLangSyntaxError(line, 'an assignment operator "=" is expected!')
@@ -243,12 +243,12 @@ class LetStatement(Statement):
             raise TinyLangSyntaxError(line, 'a variable name is expected for assignment!')
         name = check_name_legal(line, name)
         
-        expresion = expresion.strip()
-        if len(expresion) == 0:
-            raise TinyLangSyntaxError(line, 'an expresion or value is expected for assignment!')
-        expresion = Expresion.parse(line, expresion)
+        expression = expression.strip()
+        if len(expression) == 0:
+            raise TinyLangSyntaxError(line, 'an expression or value is expected for assignment!')
+        expression = Expression.parse(line, expression)
         
-        return LetStatement(name, expresion)
+        return LetStatement(name, expression)
     
     def exec(self, line, interpreter):
         """ Execute the assignment
@@ -284,18 +284,18 @@ class IfStatement(Statement):
         Returns:
             A parsed if-statement.
         """
-        expresion, target = quoted_split_first(string, 'goto')
+        expression, target = quoted_split_first(string, 'goto')
         
-        if expresion is None:
+        if expression is None:
             raise TinyLangSyntaxError(line, 'a word "goto" is expected!')
-        expresion = expresion.strip()
-        expresion = Expresion.parse(line, expresion)
+        expression = expression.strip()
+        expression = Expression.parse(line, expression)
         
         target = target.strip()
         if len(target) == 0:
             raise TinyLangSyntaxError(line, 'a target label name is expected!')
         
-        return IfStatement(expresion, target)
+        return IfStatement(expression, target)
     
     def exec(self, line, interpreter):
         """ Evaluate the condition expression and perform the redirection if the result is true.
@@ -389,8 +389,8 @@ class PrintStatement(Statement):
         for segment in segments:
             segment = segment.strip()
             if len(segment) == 0:
-                raise TinyLangSyntaxError(line, 'an expresion or value is expected')
-            expr_list.append(Expresion.parse(line, segment))
+                raise TinyLangSyntaxError(line, 'an expression or value is expected')
+            expr_list.append(Expression.parse(line, segment))
         
         return PrintStatement(*expr_list)
     
@@ -409,25 +409,25 @@ class PrintStatement(Statement):
         interpreter.print('\n')
 
 
-# expresion
+# expression
 
-class Expresion(abc.ABC):
+class Expression(abc.ABC):
     
     @staticmethod
     def parse(line, string: str):
-        for cls in [ValueExpresion, OperatorExpresion, ReferenceExpresion]:
+        for cls in [ValueExpression, OperatorExpression, ReferenceExpression]:
             try:
                 return cls.parse(line, string)
             except TinyLangSyntaxError:
                 pass
-        raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expresion!')
+        raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expression!')
     
     @abc.abstractmethod
     def eval(self, line, context):
         pass
 
 
-class ValueExpresion(Expresion):
+class ValueExpression(Expression):
     def __init__(self, value):
         self.value = value
     
@@ -436,17 +436,17 @@ class ValueExpresion(Expresion):
         string = string.strip()
         if string.startswith('"') and string.endswith('"'):
             value = string.strip('"')
-            return ValueExpresion(value)
+            return ValueExpression(value)
         if string.replace('.', '', 1).isdigit():
             value = float(string)
-            return ValueExpresion(value)
+            return ValueExpression(value)
         raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
     
     def eval(self, line, context):
         return self.value
 
 
-class ReferenceExpresion(Expresion):
+class ReferenceExpression(Expression):
     def __init__(self, name):
         self.name = name
     
@@ -454,7 +454,7 @@ class ReferenceExpresion(Expresion):
     def parse(line, string: str):
         name = string.strip()
         name = check_name_legal(line, name)
-        return ReferenceExpresion(name)
+        return ReferenceExpression(name)
     
     def eval(self, line, context):
         value = context.get(self.name)
@@ -463,7 +463,7 @@ class ReferenceExpresion(Expresion):
         return value
 
 
-class OperatorExpresion(Expresion):
+class OperatorExpression(Expression):
     class Operator(enum.Enum):
         PL = '+', lambda x, y: x + y
         MI = '-', lambda x, y: x - y
@@ -485,21 +485,21 @@ class OperatorExpresion(Expresion):
     def parse(line, string: str):
         operator = None
         operator_pos = -1
-        for op in OperatorExpresion.Operator:
+        for op in OperatorExpression.Operator:
             s, _ = op.value
             operator_pos = string.find(s)
             if operator_pos != -1:
                 operator = op
                 break
         if operator_pos == -1 or operator is None:
-            raise TinyLangSyntaxError(line, "Not found any operator in the expresion!")
+            raise TinyLangSyntaxError(line, "Not found any operator in the expression!")
         
         op_str, _ = operator.value
         expr1 = string[:operator_pos]
-        expr1 = Expresion.parse(line, expr1)
+        expr1 = Expression.parse(line, expr1)
         expr2 = string[operator_pos + len(op_str):]
-        expr2 = Expresion.parse(line, expr2)
-        return OperatorExpresion(operator, expr1, expr2)
+        expr2 = Expression.parse(line, expr2)
+        return OperatorExpression(operator, expr1, expr2)
     
     def eval(self, line, context):
         _, func = self.operator.value
@@ -616,7 +616,7 @@ def check_name_legal(line, name):
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
     if ',' in name or ':' in name or '"' in name:
         raise TinyLangSyntaxError(line, message + "commas, colons or quotes!")
-    if any(s in name for s in [op.value[0] for op in OperatorExpresion.Operator] + ["="]):
+    if any(s in name for s in [op.value[0] for op in OperatorExpression.Operator] + ["="]):
         raise TinyLangSyntaxError(line, message + "operators!")
     
     return name

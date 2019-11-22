@@ -14,8 +14,10 @@ class TinyLangInterpreter:
     Attributes:
         statements: A list that holds all parsed code.
             Its indices matches the line number.
-        next_line: The next line number.
-            Once the interpreter is resumed, it will execute the code from this line.
+            The list items can be None if there is no statement on this line.
+            It is not allowed to have more than one statement at a single line.
+        next_line: The number of line where the execution was paused.
+            When the interpreter is resumed, by default it will execute the code from this line.
         labels: A dict that holds all goto labels.
             The keys are label names, values are line numbers.
         context: A dict that holds all runtime variables.

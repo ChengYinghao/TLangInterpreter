@@ -57,7 +57,7 @@ class TinyLangInterpreter:
         
         The followings are the rules of flow control:
          - The code is executed line by line by default.
-         - When executing the goto instruction, the execution flow can be directed to some other line.
+         - When executing the goto instruction, the execution flow can be redirected to some other line.
          - When meeting some unreachable line (for example, the end of code), the interpreter pauses the execution.
          - When occurs runtime error, the interpreter pauses the execution.
         
@@ -157,9 +157,32 @@ class TinyLangInterpreter:
 # statement
 
 class Statement(abc.ABC):
+    """ A basic component of tiny-lang code.
+    
+    The execution of a statement is closely related with the interpreter.
+    
+    There 4 types of statement
+     - let-statement: modify the context
+     - if-statement: change the next line of execution
+     - input-statement: receive something from the outside
+     - print-statement: send something to the outside
+    
+    """
     
     @staticmethod
     def parse(line, string):
+        """ Parse a string into a tiny-lang statement.
+        
+        This function can detect the type of statement and parse it in a right way.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string without any label. 
+                It should start with one of the keywords: let, if, input, print.
+        
+        Returns:
+            A parsed typed statement.
+        """
         keyword, content = quoted_split_first(string, ' ')
         if keyword is None:
             keyword = string
@@ -176,16 +199,41 @@ class Statement(abc.ABC):
     
     @abc.abstractmethod
     def exec(self, line, interpreter):
+        """ Execute the statement.
+        
+        This is an abstract method. It should be implemented in subclasses.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            interpreter: The interpreter, on which the statement is executed.
+        
+        """
         pass
 
 
 class LetStatement(Statement):
-    def __init__(self, name, expr):
+    """ A statement that performs variable assignment. """
+    
+    def __init__(self, name, value_expr):
+        """
+        Args:
+            name: The name of a variable, to which the value will be assigned.
+            value_expr: An expression, the value of which will be assigned to the variable.
+        """
         self.name = name
-        self.expr = expr
+        self.value_expr = value_expr
     
     @staticmethod
     def parse(line, string):
+        """ Parse a string into a let-statement
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string without labels or keywords.
+        
+        Returns:
+            A parsed let-statement.
+        """
         name, expresion = quoted_split_first(string, '=')
         
         if name is None:
@@ -203,16 +251,39 @@ class LetStatement(Statement):
         return LetStatement(name, expresion)
     
     def exec(self, line, interpreter):
-        interpreter.context[self.name] = self.expr.eval(line, interpreter.context)
+        """ Execute the assignment
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            interpreter: The interpreter, the context of which will be changed.
+        """
+        value = self.value_expr.eval(line, interpreter.context)
+        interpreter.context[self.name] = value
 
 
 class IfStatement(Statement):
-    def __init__(self, expr, target):
+    """ A statement that redirects the execution flow under a certain condition. """
+    
+    def __init__(self, cond_expr, target):
+        """
+        Args:
+            cond_expr: An expression, the result of which determines whether to redirect the execution flow.
+            target: A name of label, to which the execution flow will be redirected.
+        """
         self.target = target
-        self.expr = expr
+        self.cond_expr = cond_expr
     
     @staticmethod
     def parse(line, string):
+        """ Parse a string into an if-statement
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string without labels or keywords.
+        
+        Returns:
+            A parsed if-statement.
+        """
         expresion, target = quoted_split_first(string, 'goto')
         
         if expresion is None:
@@ -227,7 +298,13 @@ class IfStatement(Statement):
         return IfStatement(expresion, target)
     
     def exec(self, line, interpreter):
-        if self.expr.eval(line, interpreter.context) != 0:
+        """ Evaluate the condition expression and perform the redirection if the result is true.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            interpreter: The interpreter, the attribute `next_line` of which will be changed the condition is true.
+        """
+        if self.cond_expr.eval(line, interpreter.context) != 0:
             target_line = interpreter.labels.get(self.target)
             if target_line is None:
                 raise IllegalGotoLabelError(line, self.target)
@@ -235,11 +312,26 @@ class IfStatement(Statement):
 
 
 class InputStatement(Statement):
+    """ A statement that receives an input from the outside though the interpreter. """
+    
     def __init__(self, name):
+        """
+        Args:
+            name: A name of variable, to which the input will be stored.
+        """
         self.name = name
     
     @staticmethod
     def parse(line, string):
+        """ Parse a string into an input-statement
+
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string without labels or keywords.
+
+        Returns:
+            A parsed input-statement.
+        """
         name = string
         name = name.strip()
         if len(name) == 0:
@@ -248,6 +340,12 @@ class InputStatement(Statement):
         return InputStatement(name)
     
     def exec(self, line, interpreter):
+        """ Wait to receive an input from the outside and assign it to a variable.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            interpreter: The interpreter, though which to receive the input.
+        """
         value = interpreter.input()
         try:
             value = float(value)
@@ -257,11 +355,28 @@ class InputStatement(Statement):
 
 
 class PrintStatement(Statement):
+    """ A statement that sends an output to the outside though the interpreter. """
+    
     def __init__(self, *expr_list):
+        """
+        Args:
+            expr_list: A list of expressions, the value of which will be print out.
+                It can be empty, indicating that nothing to print.
+        """
         self.expr_list = expr_list
     
     @staticmethod
     def parse(line, string):
+        """ Parse a string into a print-statement
+
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string without labels or keywords.
+                It can be an empty string when there is nothing to print.
+
+        Returns:
+            A parsed print-statement.
+        """
         string = string.strip()
         if len(string) == 0:
             return PrintStatement()
@@ -280,6 +395,12 @@ class PrintStatement(Statement):
         return PrintStatement(*expr_list)
     
     def exec(self, line, interpreter):
+        """ Evaluate the expressions and print the results to the outside.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            interpreter: The interpreter, though which to receive the input.
+        """
         if len(self.expr_list) > 0:
             interpreter.print(self.expr_list[0].eval(line, interpreter.context))
             for expr in self.expr_list[1:]:

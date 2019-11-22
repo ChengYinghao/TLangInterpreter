@@ -4,12 +4,12 @@ import sys
 import os
 
 
-# runtime
+# interpreter
 
-class TinyLangRuntime:
+class TinyLangInterpreter:
     def __init__(self):
         """
-        create and initialize  a runtime for TinyLang,
+        create and initialize  a interpreter for TinyLang,
         """
         self.statements = []
         self.labels = {}
@@ -93,8 +93,8 @@ class TinyLangRuntime:
     def execute_from(self, line):
         """
         Execute the code from a specified line.
-        The runtime will automatically run the next line unless it meets a goto instruction.
-        The runtime stops when meets the end of code or occurs any runtime error.
+        The interpreter will automatically run the next line unless it meets a goto instruction.
+        The interpreter stops when meets the end of code or occurs any runtime error.
         
         :param line: from which to run the code.
         :return: the next line to run (it should be bigger then the max existing line number)
@@ -152,7 +152,7 @@ class Statement(abc.ABC):
         return cls.parse(line, content)
     
     @abc.abstractmethod
-    def exec(self, line, runtime):
+    def exec(self, line, interpreter):
         pass
 
 
@@ -179,8 +179,8 @@ class LetStatement(Statement):
         
         return LetStatement(name, expresion)
     
-    def exec(self, line, runtime):
-        runtime.context[self.name] = self.expr.eval(line, runtime.context)
+    def exec(self, line, interpreter):
+        interpreter.context[self.name] = self.expr.eval(line, interpreter.context)
         return None
 
 
@@ -204,8 +204,8 @@ class IfStatement(Statement):
         
         return IfStatement(expresion, target)
     
-    def exec(self, line, runtime):
-        if self.expr.eval(line, runtime.context) == 0:
+    def exec(self, line, interpreter):
+        if self.expr.eval(line, interpreter.context) == 0:
             return None
         else:
             return self.target
@@ -224,13 +224,13 @@ class InputStatement(Statement):
         name = check_name_legal(line, name)
         return InputStatement(name)
     
-    def exec(self, line, runtime):
-        value = runtime.input()
+    def exec(self, line, interpreter):
+        value = interpreter.input()
         try:
             value = float(value)
         except ValueError:
             raise IllegalInputError(line)
-        runtime.context[self.name] = value
+        interpreter.context[self.name] = value
         return None
 
 
@@ -257,13 +257,13 @@ class PrintStatement(Statement):
         
         return PrintStatement(*expr_list)
     
-    def exec(self, line, runtime):
+    def exec(self, line, interpreter):
         if len(self.expr_list) > 0:
-            runtime.print(self.expr_list[0].eval(line, runtime.context))
+            interpreter.print(self.expr_list[0].eval(line, interpreter.context))
             for expr in self.expr_list[1:]:
-                runtime.print(' ')
-                runtime.print(expr.eval(line, runtime.context))
-        runtime.print('\n')
+                interpreter.print(' ')
+                interpreter.print(expr.eval(line, interpreter.context))
+        interpreter.print('\n')
         return None
 
 
@@ -497,14 +497,14 @@ def main():
 
 
 def main_interactive():
-    runtime = TinyLangRuntime()
+    interpreter = TinyLangInterpreter()
     
     next_line = 0
     break_error = False
     while True:
         try:
             string = input('Line[' + str(next_line) + '] > ')
-            next_line = runtime.execute_string(string, keep_empty=False)
+            next_line = interpreter.execute_string(string, keep_empty=False)
             if next_line < 0:
                 break
         except TinyLangCompileError as e:
@@ -526,10 +526,10 @@ def main_interactive():
 
 
 def main_script_file(script_fn):
-    runtime = TinyLangRuntime()
+    interpreter = TinyLangInterpreter()
     with open(script_fn, 'r') as script_file:
         string = script_file.read()
-    runtime.execute_string(string, keep_empty=True)
+    interpreter.execute_string(string, keep_empty=True)
 
 
 if __name__ == '__main__':

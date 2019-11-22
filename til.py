@@ -14,6 +14,8 @@ class TinyLangInterpreter:
     Attributes:
         statements: A list that holds all parsed code.
             Its indices matches the line number.
+        next_line: The next line number.
+            Once the interpreter is resumed, it will execute the code from this line.
         labels: A dict that holds all goto labels.
             The keys are label names, values are line numbers.
         context: A dict that holds all runtime variables.
@@ -23,6 +25,7 @@ class TinyLangInterpreter:
     def __init__(self):
         """ Create and initialize a tiny-lang interpreter. """
         self.statements = []
+        self.next_line = 0
         self.labels = {}
         self.context = {}
     
@@ -46,6 +49,34 @@ class TinyLangInterpreter:
             obj: Something to print. It can be anything that printable in Python.
         """
         print(obj, end='')
+    
+    def resume(self, from_line=None):
+        """ Resume the execution of code
+        
+        The followings are the rules of flow control:
+         - The code is executed line by line by default.
+         - When executing the goto instruction, the execution flow can be directed to some other line.
+         - When meeting some unreachable line (for example, the end of code), the interpreter pauses the execution.
+         - When occurs runtime error, the interpreter pauses the execution.
+        
+        Args:
+            from_line: the line number from which the execution goes.
+                If given None, it will takes the value of attribute `next_line`.
+        
+        Returns:
+            The the line number where the execution was paused.
+        """
+        if from_line is not None:
+            self.next_line = from_line
+        
+        while 0 <= self.next_line < len(self.statements):
+            this_line = self.next_line
+            self.next_line = this_line + 1
+            statement = self.statements[this_line]
+            if statement is not None:
+                statement.exec(this_line, self)
+        
+        return self.next_line
     
     @staticmethod
     def parse_one_line_string(line, string):
@@ -87,12 +118,7 @@ class TinyLangInterpreter:
             keep_empty: Whether to count the line number when meeting a empty lines.
                 Use True to run a script file in order to match line numbers.
                 Use False in interactive mode to ignore empty lines.
-        
-        Returns:
-            The first line number of the loaded string. From this line we can execute the code.
-            It can be not 0 in interactive mode.
         """
-        from_line = len(self.statements)
         for one_line_string in string.splitlines():
             line = len(self.statements)
             
@@ -105,41 +131,10 @@ class TinyLangInterpreter:
             
             if not keep_empty and label is None and statement is None:
                 continue
+            
             self.statements.append(statement)
             if label is not None:
-                label = check_name_legal(line, label)
                 self.labels[label] = line
-        
-        return from_line
-    
-    def execute_from(self, line):
-        """ Execute code starting from a specified line.
-        
-        The interpreter will automatically run the next line unless it meets a goto instruction.
-        The interpreter stops when meets the end of code or occurs any runtime error.
-        
-        Args:
-            line: The line number from which to run the code.
-        
-        Returns:
-            The number of next line. It should be bigger then the last line number.
-        """
-        while 0 <= line < len(self.statements):
-            statement = self.statements[line]
-            if statement is not None:
-                goto_label = statement.exec(line, self)
-            else:
-                goto_label = None
-            
-            if goto_label is not None:
-                next_line = self.labels.get(goto_label)
-                if next_line is None:
-                    raise IllegalGotoLabelError(line, goto_label)
-            else:
-                next_line = line + 1
-            
-            line = next_line
-        return line
     
     def execute_string(self, string, keep_empty=True):
         """ Parse a string (can be multi-line) as and then execute it.
@@ -151,11 +146,10 @@ class TinyLangInterpreter:
                 Use False in interactive mode to ignore empty lines.
         
         Returns:
-            The number of next line. It should be bigger then the last line number.
+            The the line number where the execution was paused.
         """
-        from_line = self.load_string(string, keep_empty)
-        next_line = self.execute_from(from_line)
-        return next_line
+        self.load_string(string, keep_empty)
+        return self.resume()
 
 
 # statement
@@ -208,7 +202,6 @@ class LetStatement(Statement):
     
     def exec(self, line, interpreter):
         interpreter.context[self.name] = self.expr.eval(line, interpreter.context)
-        return None
 
 
 class IfStatement(Statement):
@@ -232,10 +225,11 @@ class IfStatement(Statement):
         return IfStatement(expresion, target)
     
     def exec(self, line, interpreter):
-        if self.expr.eval(line, interpreter.context) == 0:
-            return None
-        else:
-            return self.target
+        if self.expr.eval(line, interpreter.context) != 0:
+            target_line = interpreter.labels.get(self.target)
+            if target_line is None:
+                raise IllegalGotoLabelError(line, self.target)
+            interpreter.next_line = target_line
 
 
 class InputStatement(Statement):
@@ -258,7 +252,6 @@ class InputStatement(Statement):
         except ValueError:
             raise IllegalInputError(line)
         interpreter.context[self.name] = value
-        return None
 
 
 class PrintStatement(Statement):
@@ -291,7 +284,6 @@ class PrintStatement(Statement):
                 interpreter.print(' ')
                 interpreter.print(expr.eval(line, interpreter.context))
         interpreter.print('\n')
-        return None
 
 
 # expresion

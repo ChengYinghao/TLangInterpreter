@@ -56,7 +56,7 @@ class TinyLangInterpreter:
         """ Resume the execution of code
         
         The followings are the rules of flow control:
-         - The code is executed line by line by default.
+         - By default the code is sequentially executed line by line.
          - When executing the goto instruction, the execution flow can be redirected to some other line.
          - When meeting some unreachable line (for example, the end of code), the interpreter pauses the execution.
          - When occurs runtime error, the interpreter pauses the execution.
@@ -68,9 +68,12 @@ class TinyLangInterpreter:
         Returns:
             The the line number where the execution was paused.
         """
+        
+        # determine the next_line
         if from_line is not None:
             self.next_line = from_line
         
+        # execute the statements line by line
         while 0 <= self.next_line < len(self.statements):
             this_line = self.next_line
             self.next_line = this_line + 1
@@ -78,6 +81,7 @@ class TinyLangInterpreter:
             if statement is not None:
                 statement.exec(this_line, self)
         
+        # return the line number where the execution was paused.
         return self.next_line
     
     @staticmethod
@@ -91,20 +95,18 @@ class TinyLangInterpreter:
         Returns:
             Label and statement, both witch can be None
         """
-        string = string.strip()
+        
+        # split out the label name (if exists)
         label, statement = quoted_split_first(string, ':')
         if label is not None:
-            label = label.strip()
-            if len(label) > 0:
-                label = check_name_legal(line, label)
-            else:
-                label = None
+            label = check_name_legal(line, label)
         
+        # parse the statement (if exists)
         statement = statement.strip()
-        if len(statement) == 0:
-            statement = None
-        else:
+        if len(statement) > 0:
             statement = Statement.parse(line, statement)
+        else:
+            statement = None
         
         return label, statement
     
@@ -124,16 +126,22 @@ class TinyLangInterpreter:
         for one_line_string in string.splitlines():
             line = len(self.statements)
             
+            # parse the one-line string
             try:
                 label, statement = self.parse_one_line_string(line, one_line_string)
             except TinyLangCompileError:
                 raise
             except RuntimeError as e:
+                # catch any unrecognized error in compile time
+                # raise it as an UnknownCompileError
                 raise UnknownCompileError(line, e)
             
+            # check if the line is empty
             if not keep_empty and label is None and statement is None:
                 continue
             
+            # store the parsed statement and label
+            # (in order to match the line number, the statement can be None)
             self.statements.append(statement)
             if label is not None:
                 self.labels[label] = line

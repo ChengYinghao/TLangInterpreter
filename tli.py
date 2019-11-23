@@ -442,12 +442,20 @@ class ValueExpression(Expression):
     @staticmethod
     def parse(line, string: str):
         string = string.strip()
+        
+        # try to parse as a string
         if string.startswith('"') and string.endswith('"'):
             value = string.strip('"')
             return ValueExpression(value)
-        if string.replace('.', '', 1).isdigit():
+        
+        # try to parse as a float
+        try:
             value = float(string)
             return ValueExpression(value)
+        except ValueError:
+            pass
+        
+        # raise if not successfully parsed
         raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
     
     def eval(self, line, context):

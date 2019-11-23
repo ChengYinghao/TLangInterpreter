@@ -64,9 +64,6 @@ class TinyLangInterpreter:
         Args:
             from_line: the line number from which the execution goes.
                 If given None, it will takes the value of attribute `next_line`.
-        
-        Returns:
-            The the line number where the execution was paused.
         """
         
         # determine the next_line
@@ -85,9 +82,6 @@ class TinyLangInterpreter:
                     raise
                 except RuntimeError as e:
                     raise UnknownCompileError(this_line, e)
-        
-        # return the line number where the execution was paused.
-        return self.next_line
     
     @staticmethod
     def parse_one_line_string(line, string):
@@ -160,11 +154,9 @@ class TinyLangInterpreter:
                 Use True to run a script file in order to match line numbers.
                 Use False in interactive mode to ignore empty lines.
         
-        Returns:
-            The the line number where the execution was paused.
         """
         self.load_string(string, keep_empty)
-        return self.resume()
+        self.resume()
 
 
 # statement
@@ -752,25 +744,37 @@ def quoted_split_first(string, sep=',', quote='"'):
             the first part will be None, and the second will be the original string
     """
     
+    # Find the position of the first "legal" separator in a while loop.
     cursor = 0
     while True:
+        # Find next quote and next separator
         quote_pos = string.find(quote, cursor)
         sep_pos = string.find(sep, cursor)
+        
+        # If not found any separator, break the loop as not found
         if sep_pos == -1:
             break
+        
+        # If not found any quote, just use the found separator
         if quote_pos == -1:
             break
+        
+        # If the separator is in front of the quote, just use the found separator
         if sep_pos < quote_pos:
             break
-        right_quote_pos = string.find(quote, quote_pos + 1)
-        if right_quote_pos == -1:
+        
+        # Find the closing quote, set the cursor after it and find again
+        closing_quote_pos = string.find(quote, quote_pos + 1)
+        if closing_quote_pos == -1:
             sep_pos = -1
             break
-        cursor = right_quote_pos + 1
+        cursor = closing_quote_pos + 1
     
     if sep_pos != -1:
+        # If a "legal" separator is found, return the split parts
         return string[:sep_pos], string[sep_pos + len(sep):]
     else:
+        # If not found any "legal" separator, return None and the origin string
         return None, string
 
 
@@ -791,19 +795,30 @@ def quoted_split(string, sep=',', quote='"'):
             The second element is a boolean that indicates whether the quote is closed.
     """
     
+    # Firstly split the string by quotes
     quote_segments = string.split(quote)
     
+    # Split the first non-quoted quote_segment
     quoted = False
     segments = quote_segments[0].split(sep)
     
+    # For the other quote_segments, split only the non-quoted ones
     for i, quote_segment in enumerate(quote_segments[1:]):
+        # Starting from the index 1, the even quote_segments are quoted
         quoted = i % 2 == 0
         if quoted:
+            # If quoted, simply concatenate it to the last split segment
             segments[-1] += quote + quote_segment
         else:
+            # If not quoted, split the quote_segment by the separator
             sep_segments = quote_segment.split(sep)
+            
+            # Concatenate the first sep_segment to the last split segment
             segments[-1] += quote + sep_segments[0]
+            
+            # Simply extend other sep_segments to the split segments list
             segments.extend(sep_segments[1:])
+    
     closed = not quoted
     return segments, closed
 
@@ -827,13 +842,16 @@ def check_name_legal(line, name):
     
     """
     
+    # Check the name is blank or empty
     name = name.strip()
     if len(name) == 0:
         raise TinyLangSyntaxError(line, "name of variables and labels must not be blank or empty!")
     
+    # Check if the name starts with any number
     if name[0] in '0123456789':
         raise TinyLangSyntaxError(line, "name of variables and labels must not starts with numbers!")
     
+    # Check if the name contains any illegal chars
     message = '"' + name + '" is not a legal name of variable (label), it must not contains '
     if any(c in name for c in ' \t'):
         raise TinyLangSyntaxError(line, message + "spaces or tabs!")
@@ -849,51 +867,80 @@ def check_name_legal(line, name):
 
 
 def main():
+    """ The "main function" of this python script """
+    
+    # Read the arguments
     args = sys.argv
+    
+    # The first argument should be the working dir
     work_dir = args[0]
     os.chdir(os.path.dirname(work_dir))
+    
+    # Check the mode
     if len(args) == 1:
+        # If not any extra arguments, run in interactive mode
         main_interactive()
     elif len(args) == 2:
+        # If given the second argument, run in script mode,
+        # The second argument is taken as a script filename.
         script_fn = args[1]
-        main_script_file(script_fn)
+        main_script(script_fn)
     else:
+        # Raise if given more arguments
         raise RuntimeError("Expected 1 parameter or no parameters, given " + str(len(args) - 1) + ".")
 
 
 def main_interactive():
+    """ The "main function" in interactive mode """
+    
+    # initialize an interpreter
     interpreter = TinyLangInterpreter()
     
-    next_line = 0
-    break_error = False
+    # receive any input from stdin
+    break_error = None
     while True:
         try:
-            string = input('Line[' + str(next_line) + '] > ')
-            next_line = interpreter.execute_string(string, keep_empty=False)
-            if next_line < 0:
-                break
+            # read the input string and execute it
+            string = input('Line[' + str(interpreter.next_line) + '] > ')
+            interpreter.execute_string(string, keep_empty=False)
         except TinyLangCompileError as e:
+            # skip when meeting any compile error
             print(e)
             continue
         except TinyLangRuntimeError as e:
+            # break and record when meeting any runtime error
             break_error = e
             break
         except EOFError:
+            # break when meeting the end
             break
     
-    if break_error:
-        print()
-        print("terminated with error")
+    # finalization
+    print()
+    if break_error is not None:
+        # if recorded any error, print it out
+        print("Terminated with error:")
         print(break_error)
     else:
-        print()
-        print("finished")
+        # if no recorded any error, just print the word "Finished"
+        print("Finished.")
 
 
-def main_script_file(script_fn):
+def main_script(script_fn):
+    """ The "main function" in script mode """
+    
+    # read the script file
+    try:
+        with open(script_fn, 'r') as script_file:
+            string = script_file.read()
+    except IOError as e:
+        print("Failed to read the script file!")
+        print(e)
+    
+    # initialize an interpreter
     interpreter = TinyLangInterpreter()
-    with open(script_fn, 'r') as script_file:
-        string = script_file.read()
+    
+    # run the script
     interpreter.execute_string(string, keep_empty=True)
 
 

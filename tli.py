@@ -170,8 +170,9 @@ class TinyLangInterpreter:
 # statement
 
 class Statement(abc.ABC):
-    """ A basic component of tiny-lang code.
+    """ An executable component of tiny-lang code.
     
+    A statement is some code that can be executed.
     The execution of a statement is closely related with the interpreter.
     
     There 4 types of statement

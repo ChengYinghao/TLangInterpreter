@@ -426,27 +426,79 @@ class PrintStatement(Statement):
 # expression
 
 class Expression(abc.ABC):
+    """ A evaluable component of tiny-lang code.
+    
+    An expression is some code that can be evaluated.
+    The evaluated of a statement returns a value.
+    
+    There 3 types of expression
+     - value expression: a constant value
+     - reference statement: a reference to a variable
+     - operator statement: a operation of some other expressions
+
+    """
     
     @staticmethod
     def parse(line, string: str):
+        """ Parse a string into a tiny-lang expression.
+
+        This function can detect the type of expression and parse it in a right way.
+
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string to be parsed.
+
+        Returns:
+            A parsed typed statement.
+        """
+        
+        # Try to parse the string into every type by sequence
         for cls in [ValueExpression, OperatorExpression, ReferenceExpression]:
             try:
+                # return if successfully parsed
                 return cls.parse(line, string)
             except TinyLangSyntaxError:
+                # try the next type if failed
                 pass
+        
+        # raise a syntax error if no any success
         raise TinyLangSyntaxError(line, 'Can not parse "' + string + '" as an expression!')
     
     @abc.abstractmethod
     def eval(self, line, context):
+        """ Evaluate the expression.
+        
+        This is an abstract method. It should be implemented in subclasses.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            context: The context that contains all runtime variables.
+            
+        """
         pass
 
 
 class ValueExpression(Expression):
+    """ An expression that holds a constant value. """
+    
     def __init__(self, value):
+        """
+        Args:
+            value: The constant to be hold
+        """
         self.value = value
     
     @staticmethod
     def parse(line, string: str):
+        """ Parse a string into a value expression.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string to be parsed.
+        
+        Returns:
+            A parsed value statement.
+        """
         string = string.strip()
         
         # try to parse as a string
@@ -465,27 +517,77 @@ class ValueExpression(Expression):
         raise TinyLangSyntaxError(line, "Can not parse the string as neither a float number nor a string!")
     
     def eval(self, line, context):
+        """ Simply return the holding constant value
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            context: The context that contains all runtime variables.
+        """
         return self.value
 
 
 class ReferenceExpression(Expression):
+    """ An expression that refers to a variable. """
+    
     def __init__(self, name):
+        """
+        Args:
+            name: Name of the referred variable.
+        """
         self.name = name
     
     @staticmethod
     def parse(line, string: str):
+        """ Parse a string into a reference expression.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string to be parsed.
+        
+        Returns:
+            A parsed reference statement.
+        """
         name = string.strip()
         name = check_name_legal(line, name)
         return ReferenceExpression(name)
     
     def eval(self, line, context):
+        """ Return the value of the referred variable
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            context: The context that contains all runtime variables.
+        """
+        
+        # Get the variable value by name
         value = context.get(self.name)
+        
+        # Raise if not found the variable
         if value is None:
             raise UndefinedVariableError(line, self.name)
+        
         return value
 
 
 class OperatorExpression(Expression):
+    """ An expression that indicates an operation of some other expression.
+    
+    Tiny-lang supported only binary operator.
+    So an operator expression has only two operands.
+    
+    The supported operations are listed below:
+     - plus (+)
+     - minus (-)
+     - times (*)
+     - divide (/)
+     - less than (<)
+     - less than or equal (<=)
+     - more than (>)
+     - more than or equal (>=)
+     - equal (==)
+     - not equal (!=)
+    """
+    
     class Operator(enum.Enum):
         PL = '+', lambda x, y: x + y
         MI = '-', lambda x, y: x - y
@@ -499,12 +601,28 @@ class OperatorExpression(Expression):
         NE = '!=', lambda x, y: float(x != y)
     
     def __init__(self, operator, expr1, expr2):
+        """
+        Args:
+            operator: The operator of this expression, it should be a member of the Operator Enum
+            expr1: The first operand of the operation
+            expr2: The second operand of the operation
+        """
         self.operator = operator
         self.expr1 = expr1
         self.expr2 = expr2
     
     @staticmethod
     def parse(line, string: str):
+        """ Parse a string into a reference expression.
+        
+        Args:
+            line: The line number of this string, used for error locating.
+            string: A one-line string to be parsed.
+        
+        Returns:
+            A parsed reference statement.
+        """
+        
         # Some operators can contains each other, for example "<=" contains "<".
         # To avoid confusion, we firstly rearrangement the sequence:
         # check operators with bigger length firstly.
@@ -536,9 +654,19 @@ class OperatorExpression(Expression):
         return OperatorExpression(operator, expr1, expr2)
     
     def eval(self, line, context):
-        _, func = self.operator.value
+        """ Evaluate the operands, perform the operation and return the result
+
+        Args:
+            line: The line number of this string, used for error locating.
+            context: The context that contains all runtime variables.
+        """
+        
+        # evaluate the values of the operands
         x = self.expr1.eval(line, context)
         y = self.expr2.eval(line, context)
+        
+        # perform the operation and return the result
+        _, func = self.operator.value
         return func(x, y)
 
 

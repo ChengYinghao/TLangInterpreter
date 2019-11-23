@@ -79,7 +79,12 @@ class TinyLangInterpreter:
             self.next_line = this_line + 1
             statement = self.statements[this_line]
             if statement is not None:
-                statement.exec(this_line, self)
+                try:
+                    statement.exec(this_line, self)
+                except TinyLangRuntimeError:
+                    raise
+                except RuntimeError as e:
+                    raise UnknownCompileError(this_line, e)
         
         # return the line number where the execution was paused.
         return self.next_line
@@ -543,6 +548,16 @@ class TinyLangRuntimeError(RuntimeError):
         message += " (at line " + str(line) + ")"
         super().__init__(message)
         self.line = line
+
+
+class UnknownRuntimeError(TinyLangRuntimeError):
+    def __init__(self, line, error):
+        self.error = error
+        message = "Unknown runtime error: interpreter stopped due to the following unrecognized error!"
+        super().__init__(line, message)
+    
+    def __str__(self) -> str:
+        return super().__str__() + "\n" + str(self.error)
 
 
 class UndefinedVariableError(TinyLangRuntimeError):

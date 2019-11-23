@@ -689,6 +689,13 @@ def check_name_legal(line, name):
      - punctuation containing
      - operator containing
     
+    Args:
+        line: The line number of this string, used for error locating.
+        name: The name to be checked
+    
+    Returns:
+        A stripped legal name
+    
     """
     
     name = name.strip()
